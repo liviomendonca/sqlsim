@@ -2,9 +2,9 @@
 The GROUP BY function `spatial_sim` receives a geometry point and a float threshold
 and returns an integer representing the group id of the entry point
 
-`regioes` in the code below is the table in which the clusters are saved.
-Change it as necessary.
-`topologia` is an attribute of `regioes`.
+`regions` in the code below is the table in which the spatial clusters are saved.
+`topology` is an attribute of `regions`.
+Change it as necessary to match the table and attribute of your data.
 */
 CREATE FUNCTION spatial_sim(geometry(point), d FLOAT)
 RETURNS INT AS
@@ -15,31 +15,31 @@ DECLARE
     r RECORD;
     tplg geometry; -- topology
 BEGIN
-    SELECT count(*) INTO lines FROM regioes;
+    SELECT count(*) INTO lines FROM regions;
 
     circle = ST_Buffer($1, d);
 
     IF lines = 0 THEN
-        INSERT INTO regioes
+        INSERT INTO regions
         VALUES (1, circle);
         
         RETURN 1;
     END IF;
 
     -- verify if the point belongs to any existing group
-    FOR r IN SELECT * FROM regioes LOOP
-        IF ST_Contains(r.topologia, $1) THEN
-            tplg = ST_Intersection(r.topologia, circle);
+    FOR r IN SELECT * FROM regions LOOP
+        IF ST_Contains(r.topology, $1) THEN
+            tplg = ST_Intersection(r.topology, circle);
 
-            UPDATE regioes
-            SET topologia = tplg
+            UPDATE regions
+            SET topology = tplg
             WHERE id = r.id;
 
             RETURN r.id;
         END IF;
     END LOOP;
 
-    INSERT INTO regioes
+    INSERT INTO regions
     VALUES ((lines + 1), circle);
 
     RETURN (lines + 1);
@@ -141,11 +141,11 @@ $$ LANGUAGE plpgsql;
 
 -- Now we can run queries like:
 SELECT 
-	spatial_sim(hosp, 3.5) AS espaco,
-	metric_sim(id, ct, czu, csu, 3) AS metrico,
+	spatial_sim(hosp, 3.5) AS space,
+	metric_sim(id, ct, czu, csu, 3) AS metric,
 	count(id)
 FROM bc2 b 
 GROUP BY
-	CUBE(espaco, metrico)
-ORDER BY espaco, metrico ASC;
+	CUBE(space, metric)
+ORDER BY space, metric ASC;
 

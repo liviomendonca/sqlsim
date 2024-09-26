@@ -1,0 +1,25 @@
+services:
+  database:
+    image: 'postgres:16'
+    container_name: sqlsim_db
+    env_file:
+      - ./backend/.env.dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/etc/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+  
+  pgadmin:
+    image: dpage/pgadmin4:8.4
+    container_name: sqlsim_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=user@domain.com
+      - PGADMIN_DEFAULT_PASSWORD=local_pass
+    volumes:
+      - ./pgadmin_servers.json:/pgadmin4/servers.json
+    ports:
+      - 81:80
+
+volumes:
+  db-data:
