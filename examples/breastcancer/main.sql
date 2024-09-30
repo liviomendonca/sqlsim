@@ -2,22 +2,6 @@
 This script adds data for the breastcancer example.
 It creates the necessary tables, insert data and make an example query
 */
-CREATE TABLE IF NOT EXISTS breastcancer (
-    -- store breastcancer observation data
-    id int PRIMARY KEY,
-    date_stamp DATE,
-    hospital geometry(point),
-    clump_thickness int,
-    cell_size_uniformity int,
-    cell_shape_uniformity int,
-    marginal_adhesion int,
-    single_epithelial_cell_size int,
-    bare_nuclei int,
-    bland_chromatin int,
-    normal_nucleoli int,
-    mitoses int,
-    "class" bpchar(10)
-);
 
 CREATE TABLE IF NOT EXISTS hospitals (
     -- store hospitals locations
@@ -47,3 +31,96 @@ VALUES
     (18, ST_MakePoint(36.5, 7.3)),
     (19, ST_MakePoint(30.7, 9.1));
 
+
+CREATE OR REPLACE FUNCTION date_generator()
+RETURNS DATE AS
+$$
+DECLARE
+    start_date DATE := '2024-01-01';
+    end_date DATE := '2024-06-30';
+    random_days INTEGER;
+BEGIN
+    random_days := floor(random() * (end_date - start_date + 1));
+    RETURN start_date + random_days;
+END;
+$$ LANGUAGE PLPGSQL;
+
+
+CREATE OR REPLACE FUNCTION upload_data()
+-- upload data from `wdbc.data` drawing a date and a hospital for each entry
+RETURNS void AS
+$$
+DECLARE
+    i int = 0;
+    h geometry(point);
+    d date;
+    r breastcancer%rowtype;
+BEGIN
+    FOR r IN SELECT * FROM breastcancer LOOP
+        i = i + 1;
+        dia = quedia(); -- sorteia um dia
+
+        -- sorteia um hospital
+        SELECT pin INTO h
+            FROM hospitais
+            WHERE id = (SELECT FLOOR(random() * 19) + 1);
+        -- RAISE NOTICE 'data: %, %, %, %', i, dia, h, r."class";
+
+        -- popula a table
+        INSERT INTO bc2
+        VALUES (i, dia, h, 
+            r.clump_thickness,
+            r.cell_size_uniformity,
+            r.cell_shape_uniformity,
+            r.marginal_adhesion,
+            r.single_epithelial_cell_size,
+            r.bare_nuclei,
+            r.bland_chromatin,
+            r.normal_nucleoli,
+            r.mitoses,
+            r."class"
+        );
+    END LOOP;
+    RETURN;
+END;
+$$ language plpgsql;
+
+
+
+CREATE TABLE IF NOT EXISTS breastcancer (
+    -- store breastcancer observation data
+    id integer PRIMARY KEY,
+    date_stamp date, -- generated
+    hospital geometry(point), -- generated
+    diagnosis char(1),
+    radius1 double precision,
+    texture1 double precision,
+    perimeter1 double precision,
+    area1 double precision,
+    smoothness1 double precision,
+    compactness1 double precision,
+    concavity1 double precision,
+    concave_points1 double precision,
+    symmetry1 double precision,
+    fractal_dimension1 double precision,
+    radius2 double precision,
+    texture2 double precision,
+    perimeter2 double precision,
+    area2 double precision,
+    smoothness2 double precision,
+    compactness2 double precision,
+    concavity2 double precision,
+    concave_points2 double precision,
+    symmetry2 double precision,
+    fractal_dimension2 double precision,
+    radius3 double precision,
+    texture3 double precision,
+    perimeter3 double precision,
+    area3 double precision,
+    smoothness3 double precision,
+    compactness3 double precision,
+    concavity3 double precision,
+    concave_points3 double precision,
+    symmetry3 double precision,
+    fractal_dimension3 double precision,
+);
