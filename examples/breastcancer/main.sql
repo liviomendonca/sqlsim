@@ -3,13 +3,58 @@ This script adds data for the breastcancer example.
 It creates the necessary tables, insert data and make an example query
 */
 
+
+CREATE TABLE IF NOT EXISTS breastcancer (
+    -- store breastcancer observation data
+    id integer PRIMARY KEY,
+    diagnosis char(1),
+    radius1 double precision,
+    texture1 double precision,
+    perimeter1 double precision,
+    area1 double precision,
+    smoothness1 double precision,
+    compactness1 double precision,
+    concavity1 double precision,
+    concave_points1 double precision,
+    symmetry1 double precision,
+    fractal_dimension1 double precision,
+    radius2 double precision,
+    texture2 double precision,
+    perimeter2 double precision,
+    area2 double precision,
+    smoothness2 double precision,
+    compactness2 double precision,
+    concavity2 double precision,
+    concave_points2 double precision,
+    symmetry2 double precision,
+    fractal_dimension2 double precision,
+    radius3 double precision,
+    texture3 double precision,
+    perimeter3 double precision,
+    area3 double precision,
+    smoothness3 double precision,
+    compactness3 double precision,
+    concavity3 double precision,
+    concave_points3 double precision,
+    symmetry3 double precision,
+    fractal_dimension3 double precision
+);
+
+
+COPY breastcancer FROM '/breastcancer/wdbc.data' DELIMITER ',';
+
+
+CREATE EXTENSION postgis;
+
+
 CREATE TABLE IF NOT EXISTS hospitals (
     -- store hospitals locations
     id int PRIMARY KEY,
     loc geometry(point)
 );
 
-INSERT INTO hospitais (id, loc)
+
+INSERT INTO hospitals (id, loc)
 VALUES
     (1, ST_MakePoint(10.4, 18.1)),
     (2, ST_MakePoint(12.5, 18.4)),
@@ -46,8 +91,13 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 
-CREATE OR REPLACE FUNCTION upload_data()
--- upload data from `wdbc.data` drawing a date and a hospital for each entry
+ALTER TABLE breastcancer
+ADD COLUMN time_stamp date,
+ADD COLUMN hospital geometry(point);
+
+
+CREATE OR REPLACE FUNCTION draw_time_place()
+-- add a date and a hospital for each entry of `breastcancer`
 RETURNS void AS
 $$
 DECLARE
@@ -56,71 +106,26 @@ DECLARE
     d date;
     r breastcancer%rowtype;
 BEGIN
-    FOR r IN SELECT * FROM breastcancer LOOP
+    FOR r IN SELECT id FROM breastcancer LOOP
         i = i + 1;
-        dia = quedia(); -- sorteia um dia
+        d = date_generator(); -- draw a date
 
-        -- sorteia um hospital
-        SELECT pin INTO h
-            FROM hospitais
+        -- draw a hospital
+        SELECT loc INTO h
+            FROM hospitals
             WHERE id = (SELECT FLOOR(random() * 19) + 1);
-        -- RAISE NOTICE 'data: %, %, %, %', i, dia, h, r."class";
 
-        -- popula a table
-        INSERT INTO bc2
-        VALUES (i, dia, h, 
-            r.clump_thickness,
-            r.cell_size_uniformity,
-            r.cell_shape_uniformity,
-            r.marginal_adhesion,
-            r.single_epithelial_cell_size,
-            r.bare_nuclei,
-            r.bland_chromatin,
-            r.normal_nucleoli,
-            r.mitoses,
-            r."class"
-        );
+    	UPDATE breastcancer
+        SET time_stamp = d,
+            hospital = h
+        WHERE breastcancer.id = r.id;
     END LOOP;
     RETURN;
 END;
 $$ language plpgsql;
 
 
+SELECT draw_time_place();
 
-CREATE TABLE IF NOT EXISTS breastcancer (
-    -- store breastcancer observation data
-    id integer PRIMARY KEY,
-    date_stamp date, -- generated
-    hospital geometry(point), -- generated
-    diagnosis char(1),
-    radius1 double precision,
-    texture1 double precision,
-    perimeter1 double precision,
-    area1 double precision,
-    smoothness1 double precision,
-    compactness1 double precision,
-    concavity1 double precision,
-    concave_points1 double precision,
-    symmetry1 double precision,
-    fractal_dimension1 double precision,
-    radius2 double precision,
-    texture2 double precision,
-    perimeter2 double precision,
-    area2 double precision,
-    smoothness2 double precision,
-    compactness2 double precision,
-    concavity2 double precision,
-    concave_points2 double precision,
-    symmetry2 double precision,
-    fractal_dimension2 double precision,
-    radius3 double precision,
-    texture3 double precision,
-    perimeter3 double precision,
-    area3 double precision,
-    smoothness3 double precision,
-    compactness3 double precision,
-    concavity3 double precision,
-    concave_points3 double precision,
-    symmetry3 double precision,
-    fractal_dimension3 double precision,
-);
+
+
