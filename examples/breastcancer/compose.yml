@@ -9,5 +9,9 @@ services:
     env_file:
       - .env
     
+    volumes:
+      - ../../main.sql:/docker-entrypoint-initdb.d/main.sql
+      - ./data_preparation.sql:/docker-entrypoint-initdb.d/data_preparation.sql
+    
     ports:
       - 5432:5432

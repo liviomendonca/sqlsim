@@ -1,17 +1,24 @@
+-- main functions
+
+-- Spatial dimension
+
+CREATE TABLE IF NOT EXISTS regions (
+    -- stores the centoids of the spatial clusters
+	id integer PRIMARY KEY,
+    topology geometry(polygon)
+);
+
+
+CREATE FUNCTION spatial_sim(geometry(point), d FLOAT)
 /*
 The GROUP BY function `spatial_sim` receives a geometry point and a float threshold
 and returns an integer representing the group id of the entry point
-
-`regions` in the code below is the table in which the spatial clusters are saved.
-`topology` is an attribute of `regions`.
-Change it as necessary to match the table and attribute of your data.
 */
-CREATE FUNCTION spatial_sim(geometry(point), d FLOAT)
-RETURNS INT AS
+RETURNS integer AS
 $$
 DECLARE
     circle geometry;
-    lines int;
+    lines integer;
     r RECORD;
     tplg geometry; -- topology
 BEGIN
@@ -47,22 +54,25 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 
-/*
-We need two support tables.
-`centroids` stores the centroids: id and it's shape
-`cent_assign` stores the relation match between `centroids` and the data
-*/
+
+
+-- Metric dimension
+
 CREATE TABLE IF NOT EXISTS centroids (
-    id INT primary key,
-    centroid geometry(pointZ)
+    -- stores the centroids: id and its center
+    id integer primary key,
+    center geometry(pointZ)
 );
+
 
 CREATE TABLE IF NOT EXISTS cent_assign (
-    obs_id int PRIMARY KEY, -- observation id
-    centroid int -- centroid id
+    -- `cent_assign` stores the relation match between `centroids` and the data
+    obs_id integer PRIMARY KEY, -- observation id
+    centroid integer -- centroid id
 );
 
 
+CREATE FUNCTION metric_sim(pid integer, double precision, double precision, double precision, d FLOAT)
 /*
 For the GROUP BY function `metric_sim` we have:
 INPUT:
@@ -72,20 +82,19 @@ INPUT:
 OUTPUT:
     a group id
 */
-CREATE FUNCTION metric_sim(pid INT, INT, INT, INT, d FLOAT)
-RETURNS INT AS
+RETURNS integer AS
 $$
 DECLARE
-	gid INT; -- group id
-    point geometry;
+	gid integer; -- group id
+    p geometry;
 BEGIN
     -- create a geom(point) from feature
-    point = ST_MakePoint($2, $3, $4);
+    p = ST_MakePoint($2, $3, $4);
 
     -- check if `centroids` is empty
     IF (SELECT count(*) FROM centroids) = 0 THEN
         INSERT INTO centroids
-            VALUES (1, ponto);
+            VALUES (1, p);
         gid = 1;
     ELSE
         -- if `centroids` isn't empty, we got two possibilities:
@@ -93,13 +102,13 @@ BEGIN
             -- 2. calculate the distance between each centroid and the point
 
         -- option 1:
-        SELECT centroid INTO gid FROM cent_assign WHERE bc_id = pid;
+        SELECT centroid INTO gid FROM cent_assign WHERE obs_id = pid;
         IF gid IS NOT NULL THEN
             RETURN gid;
         END IF;
 
         -- option 2:
-        gid = aggr_metric_sim(point, d);
+        gid = aggr_metric_sim(p, d);
     END IF;
 
     INSERT INTO cent_assign VALUES (pid, gid);
@@ -109,24 +118,24 @@ END;
 $$ LANGUAGE PLPGSQL;
 
 
+CREATE FUNCTION aggr_metric_sim(geometry(pointZ), d FLOAT)
 /*
-The function below, aggregate metric similarity (aggr_metric_sim), is responsible for determine
+This function, aggregate metric similarity (aggr_metric_sim), is responsible for determine
 centroid the point is related to. It receives the point to be parsed and the similarity threshold.
 */
-CREATE FUNCTION aggr_metric_sim(geometry(pointZ), d FLOAT)
-RETURNS int AS
+RETURNS integer AS
 $$
 DECLARE
-    i int;
+    i integer;
     g centroids%rowtype;
 BEGIN
 	SELECT count(*) FROM centroids INTO i;
     FOR g IN SELECT * FROM centroids LOOP
-        IF ST_3DDWithin(g.centro, $1, d) THEN
-            UPDATE centroids SET centro = ST_MakePoint(
-                (ST_X(g.centro) + ST_X($1)) / 2,
-                (ST_Y(g.centro) + ST_Y($1)) / 2,
-                (ST_Z(g.centro) + ST_Z($1)) / 2
+        IF ST_3DDWithin(g.center, $1, d) THEN
+            UPDATE centroids SET center = ST_MakePoint(
+                (ST_X(g.center) + ST_X($1)) / 2,
+                (ST_Y(g.center) + ST_Y($1)) / 2,
+                (ST_Z(g.center) + ST_Z($1)) / 2
             ) WHERE id = g.id;
 
             RETURN g.id;
@@ -137,15 +146,3 @@ BEGIN
 	RETURN i+1;
 END;
 $$ LANGUAGE plpgsql;
-
-
--- Now we can run queries like:
-SELECT 
-	spatial_sim(hosp, 3.5) AS space,
-	metric_sim(id, ct, czu, csu, 3) AS metric,
-	count(id)
-FROM bc2 b 
-GROUP BY
-	CUBE(space, metric)
-ORDER BY space, metric ASC;
-
